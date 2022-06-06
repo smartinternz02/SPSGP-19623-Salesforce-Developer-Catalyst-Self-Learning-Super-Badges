@@ -1,0 +1,181 @@
+AccountUtility.apxc:-
+public class AddPrimaryContact implements Queueable {
+   private Contact con;
+    private string state;
+    
+    public AddPrimaryContact(Contact con,string state){
+        this.con = con;
+        this.state = state;
+    }
+    public void execute(QueueableContext context){
+        List<Account>accounts = [select id,Name,(select FirstName,LastName,Id from contacts) from Account where BillingState =  :state Limit 200];
+        List<Contact>primaryContacts = new list<Contact>();
+        for(Account acc:accounts){
+            Contact c =con.clone();
+            c.AccountId = acc.Id;
+            primaryContacts.add(c);
+        }
+        if(primaryContacts.size()>0){
+            insert primaryContacts;
+        }
+    }
+}
+
+
+PropertyUtility.apxc:-
+
+public class AddPrimaryContact implements Queueable {
+   private Contact con;
+    private string state;
+    
+    public AddPrimaryContact(Contact con,string state){
+        this.con = con;
+        this.state = state;
+    }
+    public void execute(QueueableContext context){
+        List<Account>accounts = [select id,Name,(select FirstName,LastName,Id from contacts) from Account where BillingState =  :state Limit 200];
+        List<Contact>primaryContacts = new list<Contact>();
+        for(Account acc:accounts){
+            Contact c =con.clone();
+            c.AccountId = acc.Id;
+            primaryContacts.add(c);
+        }
+        if(primaryContacts.size()>0){
+            insert primaryContacts;
+        }
+    }
+}
+
+
+LeadProcessorTest.apxc:-
+@isTest
+public class LeadProcessorTest{
+    @isTest
+    public static void testit(){
+        List<lead>L_list = new list<lead>();
+        for(Integer i=0;i<200;i++){
+            Lead L = new lead();
+            L.LastName = 'name'+i;
+            L.Company ='Company';
+            L.Status = 'Random Status';
+            L_list.add(L);
+        }
+        insert L_list;
+        Test.startTest();
+        Leadprocessor lp= new LeadProcessor();
+        id batchId = Database.executeBatch(lp);
+        Test.stopTest();
+    }
+}
+
+Leadprocessor.apxc:-
+global class LeadProcessor implements Database.Batchable<sObject>{
+    global integer count=0;
+    global Database.QueryLocator start(Database.BatchableContext bc) {
+        return Database.getQueryLocator('SELECT ID,LeadSource FROM Lead');
+    }
+    global void execute(Database.BatchableContext bc, List<Lead> L_list){
+       list<Lead> L_list_new = new List<Lead>();
+        for (Lead L:L_list) {
+            L.leadsource = 'Dreamforce';
+            L_list_new.add(L);
+            count+=1;
+        }
+        update L_list_new;
+    }
+    public void finish(Database.BatchableContext bc){
+        system.debug('count = '+ count);
+    }
+}
+
+AddPrimaryContact.apxc
+public class AddPrimaryContact implements Queueable {
+   private Contact con;
+    private string state;
+    
+    public AddPrimaryContact(Contact con,string state){
+        this.con = con;
+        this.state = state;
+    }
+    public void execute(QueueableContext context){
+        List<Account>accounts = [select id,Name,(select FirstName,LastName,Id from contacts) from Account where BillingState =  :state Limit 200];
+        List<Contact>primaryContacts = new list<Contact>();
+        for(Account acc:accounts){
+            Contact c =con.clone();
+            c.AccountId = acc.Id;
+            primaryContacts.add(c);
+        }
+        if(primaryContacts.size()>0){
+            insert primaryContacts;
+        }
+    }
+}
+
+
+AddPrimaryContactTest.apxc
+@isTest
+public class AddPrimaryContactTest {
+    static testmethod void testQueueable(){
+        List<Account>testAccounts = new list <Account>();
+        for(integer i=0;i<50;i++){
+            testAccounts.add(new Account(Name='Account'+i,BillingState='CA'));
+        }
+        for(integer j=0;j<50;j++){
+            testAccounts.add(new Account(Name='Account'+j,BillingState='NY'));
+        }
+        insert testAccounts;
+        
+        Contact testContact = new Contact(FirstName='John',LastName='Doe');
+        insert testContact;
+        AddPrimaryContact addit = new addPrimaryContact(testContact,'CA');
+        Test.startTest();
+        system.enqueueJob(addit);
+        Test.stopTest();
+        system.assertEquals(50,[Select count() from Contact where accountId in (Select Id from Account where BillingState='CA')]);
+    }
+}
+
+
+
+DailyLeadProcessor.apxc:-
+@isTest
+public class AddPrimaryContactTest {
+    static testmethod void testQueueable(){
+        List<Account>testAccounts = new list <Account>();
+        for(integer i=0;i<50;i++){
+            testAccounts.add(new Account(Name='Account'+i,BillingState='CA'));
+        }
+        for(integer j=0;j<50;j++){
+            testAccounts.add(new Account(Name='Account'+j,BillingState='NY'));
+        }
+        insert testAccounts;
+        
+        Contact testContact = new Contact(FirstName='John',LastName='Doe');
+        insert testContact;
+        AddPrimaryContact addit = new addPrimaryContact(testContact,'CA');
+        Test.startTest();
+        system.enqueueJob(addit);
+        Test.stopTest();
+        system.assertEquals(50,[Select count() from Contact where accountId in (Select Id from Account where BillingState='CA')]);
+    }
+}
+
+DailyLeadProcessorTest.apxc:-
+@isTest
+private class DailyLeadProcessorTest{
+    //Seconds Minutes Hours Day_of_month Month Day_of_week optional_year
+    public static String CRON_EXP = '0 0 0 2 6 ? 2022';
+    static testmethod void testScheduledJob(){
+        List<Lead> leads = new List<Lead>();
+        for(Integer i = 0; i < 200; i++){
+            Lead lead = new Lead(LastName = 'Test ' + i, LeadSource = '', Company = 'Test Company ' + i, Status = 'Open - Not Contacted');
+            leads.add(lead);
+        }
+        insert leads;
+        Test.startTest();
+        // Schedule the test job
+        String jobId = System.schedule('Update LeadSource to DreamForce', CRON_EXP, new DailyLeadProcessor());
+        // Stopping the test will run the job synchronously
+        Test.stopTest();
+    }
+}

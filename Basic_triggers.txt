@@ -1,0 +1,48 @@
+ClosedOpportunityTrigger.apxt:-
+
+trigger ClosedOpportunityTrigger on Opportunity (after insert,after update) {
+List<Task> tasklist = new List<Task>();
+    for(Opportunity opp:Trigger.New){
+        if(opp.Stagename=='Closed Won'){
+          tasklist.add(New Task(subject='Follow Up Test Task',WhatId=opp.Id));
+        }      
+    }
+    if(tasklist.size()>=0){
+        insert tasklist;
+    }
+}
+
+RejectDuplicateFavorite.apxt:-
+
+trigger RejectDuplicateFavorite on Favorite__c (before insert) {
+    
+    // NOTE: this trigger needs to be bulkified
+    
+    Favorite__c favorite = Trigger.New[0];
+    List<Favorite__c> dupes = [Select Id FROM Favorite__C WHERE Property__c = :favorite.Property__c AND User__c = :favorite.User__c];
+    if (!dupes.isEmpty()) {
+        favorite.addError('duplicate');
+    }
+
+}
+
+
+
+AccountAddressTrigger.apxt:-
+
+trigger AccountAddressTrigger on Account (before insert,before update) {
+ for(Account account:Trigger.New)
+ {
+     if(account.Match_Billing_Address__c == true)
+     {
+         account.ShippingPostalCode = account.BillingPostalCode;
+     }
+ }
+}
+
+
+
+HelloWorldTrigger.apxt:-
+trigger HelloWorldTrigger on Account (before insert) {
+	System.debug('Hello World!');
+}
